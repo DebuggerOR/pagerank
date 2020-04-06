@@ -4,57 +4,52 @@ import math
 import numpy as np
 from scipy.sparse import csc_matrix
 
-def pageRank(G, s = .85, maxerr = .0001):
+
+def pageRank(G, d = .85, epslion = .0001):
     """
-    Computes the pagerank for each of the n states
-    Parameters
-    ----------
-    G: matrix representing state transitions
-       Gij is a binary value representing a transition from state i to j.
-    s: probability of following a transition. 1-s probability of teleporting
-       to another state.
-    maxerr: if the sum of pageranks between iterations is bellow this we will
-            have converged.
+    G is a matrix represents outgoing edges between pages
+    0,1 at i,j represents existence of j->i edge
+    i.e. column j of G represents the outgoing edges of j
+
+    d is damping factor
+    1 - d is the probability to jump to random page
+
+    epsilon the convergence parameter
+
+    the formula is:
+    rank = S * rank
+    and with damping factor:
+    rank = d * S * rank + (1 - d) / N
     """
-    n = G.shape[0]
+    # num of nodes
+    N = G.shape[0]
 
-    # transform G into markov matrix A
-    A = csc_matrix(G,dtype=np.float)
-    rsums = np.array(A.sum(1))[:,0]
-    ri, ci = A.nonzero()
-    A.data /= rsums[ri]
+    # stochastic G
+    sG = G / G.sum(axis=0)
+    sG = (d * sG + (1 - d) / N)
 
-    # bool array of sink states
-    sink = rsums==0
+    # init rank with uniform prob
+    r = np.full(8, 1 / N)
+    prev_r = 0
 
-    # Compute pagerank r until we converge
-    ro, r = np.zeros(n), np.ones(n)
-    while np.sum(np.abs(r-ro)) > maxerr:
-        ro = r.copy()
-        # calculate each pagerank at a time
-        for i in range(0,n):
-            # inlinks of state i
-            Ai = np.array(A[:,i].todense())[:,0]
-            # account for sink states
-            Di = sink / float(n)
-            # account for teleportation to state i
-            Ei = np.ones(n) / float(n)
-
-            r[i] = ro.dot( Ai*s + Di*s + Ei*(1-s) )
+    # iterate until small diff between iterations
+    while np.sum(np.abs(r - prev_r)) > epslion:
+        prev_r = r.copy()
+        r = np.dot(sG, r)
 
     # return normalized pagerank
-    return r/float(sum(r))
+    return r
 
 
 def my_links():
-    pages = ["https://en.wikipedia.org/wiki/Bar-Ilan_University",
-             "https://en.wikipedia.org/wiki/Ramat_Gan",
-             "https://en.wikipedia.org/wiki/Library",
-             "https://en.wikipedia.org/wiki/Daniel_Hershkowitz",
-             "https://en.wikipedia.org/wiki/Judaism",
-             "https://en.wikipedia.org/wiki/Ministry_of_Education_(Israel)",
-             "https://en.wikipedia.org/wiki/Exact_sciences",
-             "https://en.wikipedia.org/wiki/Engineering"]
+    pages = ["bar ilan",
+             "ramat gan",
+             "library",
+             "daniel hershkowitz",
+             "judaism",
+             "minister of education",
+             "exact sciences",
+             "engineering"]
 
     links = np.array([[0,1,1,1,0,0,1,0],
                       [1,0,1,1,0,0,0,0],
@@ -71,10 +66,13 @@ def my_links():
 if __name__ == '__main__':
     # calc pagerank with two damping values
     links,pages = my_links()
-    ranks = pageRank(links, s=.8)
+
+    print("\nresults for 0.8")
+    ranks = pageRank(links, d=.8)
     for (page,rank) in zip(pages,ranks):
         print(page + " " + str(rank))
 
-    ranks = pageRank(links,s=.9)
+    print("\nresults for 0.9")
+    ranks = pageRank(links,d=.9)
     for (page,rank) in zip(pages,ranks):
         print(page + " " + str(rank))
